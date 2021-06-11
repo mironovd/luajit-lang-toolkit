@@ -13,6 +13,8 @@ local bc = require('lang.bytecode')
 local const_eval = require("lang.ast_const_eval")
 local boolean_const_eval = require("lang.ast_boolean_const_eval")
 
+local LJ_FR2 = 1
+
 local ID = 0
 local function genid()
    ID = ID + 1
@@ -404,13 +406,17 @@ local function emit_call_expression(self, node, want, use_tail, use_self)
     local call_line = node.line
     if use_self then
         local obj = self:expr_toanyreg(node.receiver)
-        self.ctx:op_move(free + 1, obj)
-        self.ctx:setreg(free + 2)
+        self.ctx:op_move(free + 1 + LJ_FR2, obj)
+        self.ctx:setreg(free + 2 + LJ_FR2)
         local method_type, method = self:property_tagged(node.method.name)
         self.ctx:op_tget(free, obj, method_type, method)
         self.ctx.freereg = free + 2
     else
         self:expr_tonextreg(node.callee)
+    end
+
+    if LJ_FR2 == 1 then
+        self.ctx:nextreg()
     end
 
     local narg = #node.arguments

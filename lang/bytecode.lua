@@ -27,6 +27,8 @@ local bit  = require 'bit'
 local ffi  = require 'ffi'
 local jit  = require 'jit'
 
+local LJ_FR2 = 1
+
 local band, bor, shl, shr, bnot = bit.band, bit.bor, bit.lshift, bit.rshift, bit.bnot
 
 local jit_v21 = jit.version_num >= 20100
@@ -1255,23 +1257,47 @@ function Proto.__index:op_cat(base, rbot, rtop)
     return self:emit(BC.CAT, base, rbot, rtop)
 end
 
-Dump = {
-    HEAD_1 = 0x1b;
-    HEAD_2 = 0x4c;
-    HEAD_3 = 0x4a;
-    VERS   = jit_v21 and 0x02 or 0x01;
-    BE     = 0x01;
-    STRIP  = 0x02;
-    FFI    = 0x04;
-    DEBUG  = false;
-}
+if LJ_FR2 == 1 then
+    Dump = {
+        HEAD_1 = 0x1b;
+        HEAD_2 = 0x4c;
+        HEAD_3 = 0x4a;
+        VERS   = jit_v21 and 0x02 or 0x01;
+        BE     = 0x01;
+        STRIP  = 0x02;
+        FFI    = 0x04;
+        FR2    = 0x08;
+        DEBUG  = false;
+    }
+else
+    Dump = {
+        HEAD_1 = 0x1b;
+        HEAD_2 = 0x4c;
+        HEAD_3 = 0x4a;
+        VERS   = jit_v21 and 0x02 or 0x01;
+        BE     = 0x01;
+        STRIP  = 0x02;
+        FFI    = 0x04;
+        DEBUG  = false;
+    }
+end
+
 Dump.__index = {}
 function Dump.new(main, name)
-    local self =  setmetatable({
-        main  = main;
-        name  = name;
-        flags = band(main.flags, Dump.FFI);
-    }, Dump)
+    local self
+    if LJ_FR2 == 1 then
+        self =  setmetatable({
+            main  = main;
+            name  = name;
+            flags = bor(band(main.flags, Dump.FFI),Dump.FR2);
+        }, Dump)
+    else
+        self =  setmetatable({
+            main  = main;
+            name  = name;
+            flags = band(main.flags, Dump.FFI);
+        }, Dump)
+    end
     return self
 end
 function Dump.__index:write_header(buf)

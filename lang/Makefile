@@ -1,6 +1,6 @@
 
-LANG_LUA_FILES = ast-boolean-const-eval.lua ast-const-eval.lua bcread.lua bcsave.lua \
-	bytecode.lua compile.lua generator.lua lexer.lua id-generator.lua lua-ast.lua operator.lua \
+LANG_LUA_FILES = ast_boolean_const_eval.lua ast_const_eval.lua bcread.lua bcsave.lua \
+	bytecode.lua compile.lua generator.lua lexer.lua id_generator.lua lua_ast.lua operator.lua \
 	parser.lua reader.lua
 
 LANG_H_FILES = $(LANG_LUA_FILES:%.lua=%.h)

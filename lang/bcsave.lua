@@ -25,6 +25,8 @@
 local jit = require("jit")
 local bit = require("bit")
 
+local LJ_FR2 = 1
+
 -- Symbol name prefix for LuaJIT bytecode.
 local LJBC_PREFIX = "luaJIT_BC_"
 
@@ -584,7 +586,12 @@ local function bc_magic_header(input)
     local f, err = io.open(input, "rb")
     check(f, "cannot open ", err)
     local header = f:read(4)
-    local match = (header == string.char(0x1b, 0x4c, 0x4a, 0x01))
+    local match
+    if LJ_FR2 == 1 then
+	 match = (header == string.char(0x1b, 0x4c, 0x4a, 0x02))
+    else
+        match = (header == string.char(0x1b, 0x4c, 0x4a, 0x01))
+    end
     f:close()
     return match
 end

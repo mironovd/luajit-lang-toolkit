@@ -15,22 +15,46 @@ local ffi = require("ffi")
 local band, bor, shl, shr, bnot = bit.band, bit.bor, bit.lshift, bit.rshift, bit.bnot
 local strsub, strbyte, strchar, format, gsub = string.sub, string.byte, string.char, string.format, string.gsub
 
-local BCDUMP = {
-    HEAD1 = 0x1b,
-    HEAD2 = 0x4c,
-    HEAD3 = 0x4a,
+local LJ_FR2 = 1
 
-    -- If you perform *any* kind of private modifications to the bytecode itself
-    -- or to the dump format, you *must* set BCDUMP_VERSION to 0x80 or higher.
-    VERSION = 1,
+local BCDUMP
+if LJ_FR2 == 1 then
+    BCDUMP = {
+        HEAD1 = 0x1b,
+        HEAD2 = 0x4c,
+        HEAD3 = 0x4a,
 
-    -- Compatibility flags.
-    F_BE    = 0x01,
-    F_STRIP = 0x02,
-    F_FFI   = 0x04,
-}
+        -- If you perform *any* kind of private modifications to the bytecode itself
+        -- or to the dump format, you *must* set BCDUMP_VERSION to 0x80 or higher.
+        VERSION = 2,
+
+        -- Compatibility flags.
+        F_BE    = 0x01,
+        F_STRIP = 0x02,
+        F_FFI   = 0x04,
+        F_FR2   = 0x08,
+    }
+else
+    BCDUMP = {
+        HEAD1 = 0x1b,
+        HEAD2 = 0x4c,
+        HEAD3 = 0x4a,
+
+        -- If you perform *any* kind of private modifications to the bytecode itself
+        -- or to the dump format, you *must* set BCDUMP_VERSION to 0x80 or higher.
+        VERSION = 1,
+
+        -- Compatibility flags.
+        F_BE    = 0x01,
+        F_STRIP = 0x02,
+        F_FFI   = 0x04,
+    }
+end
 
 BCDUMP.F_KNOWN = BCDUMP.F_FFI*2-1
+if LJ_FR2 == 1 then 
+    BCDUMP.F_KNOWN = BCDUMP.F_FR2*2-1 
+end
 
 local BCDUMP_KGC_CHILD, BCDUMP_KGC_TAB, BCDUMP_KGC_I64, BCDUMP_KGC_U64, BCDUMP_KGC_COMPLEX, BCDUMP_KGC_STR = 0, 1, 2, 3, 4, 5
 local BCDUMP_KTAB_NIL, BCDUMP_KTAB_FALSE, BCDUMP_KTAB_TRUE, BCDUMP_KTAB_INT, BCDUMP_KTAB_NUM, BCDUMP_KTAB_STR = 0, 1, 2, 3, 4, 5
@@ -54,6 +78,8 @@ local BCDEF_TAB = {
     {'ISNEN', 'var', 'none', 'num', 'eq'},
     {'ISEQP', 'var', 'none', 'pri', 'eq'},
     {'ISNEP', 'var', 'none', 'pri', 'eq'},
+    {'ISTYPE', 'var', 'none', 'lit', 'none'},
+    {'ISNUM', 'var', 'none', 'lit', 'none'},
 
     -- Unary test and copy ops.
     {'ISTC', 'dst', 'none', 'var', 'none'},
@@ -114,9 +140,11 @@ local BCDEF_TAB = {
     {'TGETV', 'dst', 'var', 'var', 'index'},
     {'TGETS', 'dst', 'var', 'str', 'index'},
     {'TGETB', 'dst', 'var', 'lit', 'index'},
+    {'TGETR', 'dst', 'var', 'var', 'index'},
     {'TSETV', 'var', 'var', 'var', 'newindex'},
     {'TSETS', 'var', 'var', 'str', 'newindex'},
     {'TSETB', 'var', 'var', 'lit', 'newindex'},
+    {'TSETR', 'var', 'var', 'var', 'newindex'},
     {'TSETM', 'base', 'none', 'num', 'newindex'},
 
     -- Calls and vararg handling. T = tail call.
@@ -442,7 +470,11 @@ end
 local function uv_decode(uv)
     if band(uv, 0x8000) ~= 0 then
         local imm = (band(uv, 0x40) ~= 0)
-        return band(uv, 0xff), true, imm
+        if LJ_FR2 == 1 then
+	    return band(uv, 0x3fff), true, imm
+	else
+	    return band(uv, 0xff), true, imm
+	end
     else
         return uv, false, false
     end
